@@ -2,7 +2,10 @@ import React, { useRef, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import './App.css';
 
-const socket = io('https://f754-202-173-124-249.ngrok-free.app');
+const socket = io("https://f754-202-173-124-249.ngrok-free.app", {
+  transports: ['websocket'], // Force WebSocket protocol
+  path: "/socket.io",         // Optional, but safe to specify
+});
 
 const App = () => {
   const localVideo = useRef(null);
