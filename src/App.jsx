@@ -2,22 +2,19 @@ import React, { useRef, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import './App.css';
 
-const socket = io("https://f754-202-173-124-249.ngrok-free.app", {
-  transports: ['websocket'],
-  path: "/socket.io",
-});
+const socket = io('https://f754-202-173-124-249.ngrok-free.app');
 
 const App = () => {
   const localVideo = useRef(null);
   const remoteVideo = useRef(null);
   const peerConnection = useRef(null);
-  const [mediaStream, setMediaStream] = useState(null);
 
   const [socketId, setSocketId] = useState('');
   const [targetId, setTargetId] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [streamStarted, setStreamStarted] = useState(false);
-  const [facingMode, setFacingMode] = useState('user');
+  const [mediaStream, setMediaStream] = useState(null);
+  const [facingMode, setFacingMode] = useState('user'); // 'user' = front, 'environment' = back
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -87,7 +84,7 @@ const App = () => {
 
       setStreamStarted(true);
     } catch (err) {
-      alert('Camera/Microphone access denied.');
+      alert('Camera/Mic access denied or blocked');
       console.error(err);
     }
   };
@@ -97,7 +94,7 @@ const App = () => {
     setStreamStarted(false);
     mediaStream.getTracks().forEach(track => track.stop());
     setFacingMode(prev => (prev === 'user' ? 'environment' : 'user'));
-    setTimeout(() => startLocalStream(), 300);
+    setTimeout(() => startLocalStream(), 300); // Give it a moment
   };
 
   const callUser = async (id = targetId) => {
@@ -125,7 +122,7 @@ const App = () => {
         <button onClick={() => callUser()} className="btn">Connect</button>
         {!streamStarted && (
           <button className="btn" onClick={startLocalStream}>
-            Enable Camera & Mic
+            Enable Camera & Microphone
           </button>
         )}
         {streamStarted && (
