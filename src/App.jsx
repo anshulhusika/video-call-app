@@ -2,17 +2,22 @@ import React, { useRef, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import './App.css';
 
-const socket = io('http://192.168.1.9:5000'); // Use your IP or ngrok URL
+const socket = io("https://f754-202-173-124-249.ngrok-free.app", {
+  transports: ['websocket'], // Force WebSocket protocol
+  path: "/socket.io",         // Optional, but safe to specify
+});
 
 const App = () => {
   const localVideo = useRef(null);
   const remoteVideo = useRef(null);
   const peerConnection = useRef(null);
+  const [mediaStream, setMediaStream] = useState(null);
 
   const [socketId, setSocketId] = useState('');
   const [targetId, setTargetId] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [streamStarted, setStreamStarted] = useState(false);
+  const [facingMode, setFacingMode] = useState('user'); // 'user' = front, 'environment' = back
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -53,8 +58,13 @@ const App = () => {
     if (streamStarted) return;
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode },
+        audio: true,
+      });
+
       localVideo.current.srcObject = stream;
+      setMediaStream(stream);
 
       peerConnection.current = new RTCPeerConnection();
 
@@ -70,16 +80,24 @@ const App = () => {
         if (event.candidate && targetId) {
           socket.emit('ice-candidate', {
             to: targetId,
-            candidate: event.candidate
+            candidate: event.candidate,
           });
         }
       };
 
       setStreamStarted(true);
     } catch (err) {
-      alert('Camera/Mic access denied or blocked');
+      alert('Camera/Microphone access denied.');
       console.error(err);
     }
+  };
+
+  const switchCamera = async () => {
+    if (!mediaStream) return;
+    setStreamStarted(false);
+    mediaStream.getTracks().forEach(track => track.stop());
+    setFacingMode(prev => (prev === 'user' ? 'environment' : 'user'));
+    setTimeout(() => startLocalStream(), 300);
   };
 
   const callUser = async (id = targetId) => {
@@ -91,8 +109,18 @@ const App = () => {
     socket.emit('offer', { to: id, offer });
   };
 
+  const toggleFullscreen = () => {
+    if (remoteVideo.current.requestFullscreen) {
+      remoteVideo.current.requestFullscreen();
+    } else if (remoteVideo.current.webkitRequestFullscreen) {
+      remoteVideo.current.webkitRequestFullscreen();
+    } else if (remoteVideo.current.msRequestFullscreen) {
+      remoteVideo.current.msRequestFullscreen();
+    }
+  };
+
   return (
-    <div className="container">
+    <div className="container dark">
       <h1 className="title">Free Video Call</h1>
 
       <div className="card">
@@ -107,7 +135,12 @@ const App = () => {
         <button onClick={() => callUser()} className="btn">Connect</button>
         {!streamStarted && (
           <button className="btn" onClick={startLocalStream}>
-            Enable Camera & Microphone
+            Enable Camera & Mic
+          </button>
+        )}
+        {streamStarted && (
+          <button className="btn" onClick={switchCamera}>
+            Switch Camera
           </button>
         )}
       </div>
@@ -122,10 +155,10 @@ const App = () => {
         ))}
       </div>
 
-      {/* Fullscreen remote video + PiP local video */}
       <div className="video-wrapper">
         <video ref={remoteVideo} autoPlay playsInline className="remote-video" />
         <video ref={localVideo} autoPlay muted playsInline className="local-video" />
+        <button onClick={toggleFullscreen} className="fullscreen-btn">⛶ Fullscreen</button>
       </div>
     </div>
   );
