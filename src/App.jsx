@@ -3,8 +3,8 @@ import { io } from 'socket.io-client';
 import './App.css';
 
 const socket = io("https://f754-202-173-124-249.ngrok-free.app", {
-  transports: ['websocket'], // Force WebSocket protocol
-  path: "/socket.io",         // Optional, but safe to specify
+  transports: ['websocket'],
+  path: "/socket.io",
 });
 
 const App = () => {
@@ -17,7 +17,7 @@ const App = () => {
   const [targetId, setTargetId] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [streamStarted, setStreamStarted] = useState(false);
-  const [facingMode, setFacingMode] = useState('user'); // 'user' = front, 'environment' = back
+  const [facingMode, setFacingMode] = useState('user');
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -109,16 +109,6 @@ const App = () => {
     socket.emit('offer', { to: id, offer });
   };
 
-  const toggleFullscreen = () => {
-    if (remoteVideo.current.requestFullscreen) {
-      remoteVideo.current.requestFullscreen();
-    } else if (remoteVideo.current.webkitRequestFullscreen) {
-      remoteVideo.current.webkitRequestFullscreen();
-    } else if (remoteVideo.current.msRequestFullscreen) {
-      remoteVideo.current.msRequestFullscreen();
-    }
-  };
-
   return (
     <div className="container dark">
       <h1 className="title">Free Video Call</h1>
@@ -158,7 +148,6 @@ const App = () => {
       <div className="video-wrapper">
         <video ref={remoteVideo} autoPlay playsInline className="remote-video" />
         <video ref={localVideo} autoPlay muted playsInline className="local-video" />
-        <button onClick={toggleFullscreen} className="fullscreen-btn">⛶ Fullscreen</button>
       </div>
     </div>
   );
