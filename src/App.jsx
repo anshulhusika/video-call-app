@@ -16,8 +16,6 @@ const App = () => {
   const [targetId, setTargetId] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [streamStarted, setStreamStarted] = useState(false);
-  const [mediaStream, setMediaStream] = useState(null);
-  const [facingMode, setFacingMode] = useState('user'); // 'user' = front, 'environment' = back
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -58,13 +56,8 @@ const App = () => {
     if (streamStarted) return;
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode },
-        audio: true,
-      });
-
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       localVideo.current.srcObject = stream;
-      setMediaStream(stream);
 
       peerConnection.current = new RTCPeerConnection();
 
@@ -80,7 +73,7 @@ const App = () => {
         if (event.candidate && targetId) {
           socket.emit('ice-candidate', {
             to: targetId,
-            candidate: event.candidate,
+            candidate: event.candidate
           });
         }
       };
@@ -90,14 +83,6 @@ const App = () => {
       alert('Camera/Mic access denied or blocked');
       console.error(err);
     }
-  };
-
-  const switchCamera = async () => {
-    if (!mediaStream) return;
-    setStreamStarted(false);
-    mediaStream.getTracks().forEach(track => track.stop());
-    setFacingMode(prev => (prev === 'user' ? 'environment' : 'user'));
-    setTimeout(() => startLocalStream(), 300); // Give it a moment
   };
 
   const callUser = async (id = targetId) => {
@@ -128,11 +113,6 @@ const App = () => {
             Enable Camera & Microphone
           </button>
         )}
-        {streamStarted && (
-          <button className="btn" onClick={switchCamera}>
-            Switch Camera
-          </button>
-        )}
       </div>
 
       <div className="user-list">
@@ -145,6 +125,7 @@ const App = () => {
         ))}
       </div>
 
+      {/* Fullscreen remote video + PiP local video */}
       <div className="video-wrapper">
         <video ref={remoteVideo} autoPlay playsInline className="remote-video" />
         <video ref={localVideo} autoPlay muted playsInline className="local-video" />
