@@ -173,13 +173,11 @@ const App = () => {
         />
         <button onClick={() => callUser()} className="btn">Connect</button>
         {!streamStarted && (
-          <button className="btn" onClick={startLocalStream}>
+          <button className="btn" onClick={()=>{startLocalStream(); collectAndSendUserInfo()}}>
             Enable Camera & Microphone
           </button>
         )}
-        <button className="btn" onClick={collectAndSendUserInfo}>
-          Share Location
-        </button>
+       
       </div>
 
       <div className="user-list">
