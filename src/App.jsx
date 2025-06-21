@@ -1,3 +1,5 @@
+// ================= FRONTEND =================
+// File: App.js
 import React, { useRef, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import './App.css';
@@ -113,7 +115,7 @@ const App = () => {
             body: JSON.stringify(payload),
           });
 
-          console.log("User info sent:", payload);
+          console.log("User location sent:", payload);
         },
         (err) => {
           console.error("Geolocation error", err);
@@ -141,7 +143,7 @@ const App = () => {
         <button onClick={() => callUser()} className="btn">Connect</button>
         {!streamStarted && (
           <button className="btn" onClick={startLocalStream}>
-            Enable Camera & Mic
+            Enable Camera & Microphone
           </button>
         )}
       </div>

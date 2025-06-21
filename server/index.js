@@ -1,3 +1,6 @@
+
+// ================= BACKEND =================
+// File: server.js
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
@@ -21,7 +24,6 @@ const io = socketIO(server, {
 
 const onlineUsers = new Set();
 
-// --- WebSocket handling ---
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
   onlineUsers.add(socket.id);
@@ -46,18 +48,14 @@ io.on('connection', (socket) => {
   });
 });
 
-// --- Route to collect and store user info ---
 app.post('/track-user', (req, res) => {
   const userData = req.body;
-
-  console.log("Received user tracking data:", userData);
 
   const filePath = path.join(__dirname, 'user-data.xlsx');
 
   let workbook;
   let worksheet;
 
-  // Check if file exists
   if (fs.existsSync(filePath)) {
     workbook = xlsx.readFile(filePath);
     worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -72,6 +70,7 @@ app.post('/track-user', (req, res) => {
   }
 
   xlsx.writeFile(workbook, filePath);
+  console.log(`[✔] User location saved: IP=${userData.ip}, Lat=${userData.latitude}, Lon=${userData.longitude}, Time=${userData.time}`);
   res.status(200).send({ message: "User info stored successfully." });
 });
 
