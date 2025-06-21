@@ -21,7 +21,7 @@ const App = () => {
   useEffect(() => {
     socket.on('connect', () => {
       setSocketId(socket.id);
-      collectAndSendUserInfo();
+      console.log("Connected with socket ID:", socket.id);
     });
 
     socket.on('online-users', (users) => {
@@ -40,7 +40,9 @@ const App = () => {
     });
 
     socket.on('answer', ({ answer }) => {
-      peerConnection?.setRemoteDescription(new RTCSessionDescription(answer));
+      if (peerConnection) {
+        peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+      }
     });
 
     socket.on('ice-candidate', ({ candidate }) => {
@@ -73,25 +75,37 @@ const App = () => {
   };
 
   const createPeerConnection = (remoteId) => {
-    const pc = new RTCPeerConnection();
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+      ],
+    });
 
     if (mediaStream) {
-      mediaStream.getTracks().forEach(track => {
+      mediaStream.getTracks().forEach((track) => {
         pc.addTrack(track, mediaStream);
       });
+    } else {
+      console.warn("Media stream not available when creating PeerConnection");
     }
 
     pc.ontrack = (event) => {
-      remoteVideo.current.srcObject = event.streams[0];
+      if (remoteVideo.current && event.streams && event.streams[0]) {
+        remoteVideo.current.srcObject = event.streams[0];
+      }
     };
 
     pc.onicecandidate = (event) => {
       if (event.candidate && remoteId) {
-        socket.emit('ice-candidate', {
+        socket.emit("ice-candidate", {
           to: remoteId,
           candidate: event.candidate,
         });
       }
+    };
+
+    pc.onconnectionstatechange = () => {
+      console.log("Peer connection state:", pc.connectionState);
     };
 
     return pc;
@@ -108,41 +122,41 @@ const App = () => {
     socket.emit('offer', { to: id, offer });
     setPeerConnection(pc);
   };
-const collectAndSendUserInfo = async () => {
-  try {
-    const ipRes = await fetch("https://api.ipify.org?format=json");
-    const { ip } = await ipRes.json();
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const payload = {
-          ip,
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          userAgent: navigator.userAgent,
-          platform: navigator.platform,
-          time: new Date().toISOString()
-        };
+  const collectAndSendUserInfo = async () => {
+    try {
+      const ipRes = await fetch("https://api.ipify.org?format=json");
+      const { ip } = await ipRes.json();
 
-        // ✅ Use correct backend URL here
-        await fetch("https://e2fe-202-173-124-249.ngrok-free.app/track-user", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const payload = {
+            ip,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            time: new Date().toISOString()
+          };
 
-        console.log("User location sent:", payload);
-      },
-      (err) => {
-        console.error("Geolocation error", err);
-      },
-      { enableHighAccuracy: true }
-    );
-  } catch (error) {
-    console.error("Tracking failed:", error);
-  }
-};
+          await fetch("https://e2fe-202-173-124-249.ngrok-free.app/track-user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          console.log("User location sent:", payload);
+        },
+        (err) => {
+          console.error("Geolocation error", err);
+        },
+        { enableHighAccuracy: true }
+      );
+    } catch (error) {
+      console.error("Tracking failed:", error);
+    }
+  };
 
   return (
     <div className="container dark">
@@ -163,6 +177,9 @@ const collectAndSendUserInfo = async () => {
             Enable Camera & Microphone
           </button>
         )}
+        <button className="btn" onClick={collectAndSendUserInfo}>
+          Share Location
+        </button>
       </div>
 
       <div className="user-list">

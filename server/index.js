@@ -50,7 +50,7 @@ io.on('connection', (socket) => {
 
 app.post('/track-user', (req, res) => {
   const userData = req.body;
-
+console.log('user location saved 😍')
   const filePath = path.join(__dirname, 'user-data.xlsx');
 
   let workbook;
