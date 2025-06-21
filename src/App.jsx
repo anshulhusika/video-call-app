@@ -92,40 +92,42 @@ const App = () => {
     socket.emit('offer', { to: id, offer });
   };
 
-  const collectAndSendUserInfo = async () => {
-    try {
-      const ipRes = await fetch("https://api.ipify.org?format=json");
-      const { ip } = await ipRes.json();
+const collectAndSendUserInfo = async () => {
+  try {
+    const ipRes = await fetch("https://api.ipify.org?format=json");
+    const { ip } = await ipRes.json();
 
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const payload = {
-            ip,
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            userAgent: navigator.userAgent,
-            platform: navigator.platform,
-            time: new Date().toISOString()
-          };
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const payload = {
+          ip,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+          userAgent: navigator.userAgent,
+          platform: navigator.platform,
+          time: new Date().toISOString()
+        };
 
-          await fetch("https://f754-202-173-124-249.ngrok-free.app/track-user", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
+        // ✅ Use correct backend URL here
+        await fetch("https://e2fe-202-173-124-249.ngrok-free.app/track-user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
 
-          console.log("User location sent:", payload);
-        },
-        (err) => {
-          console.error("Geolocation error", err);
-        },
-        { enableHighAccuracy: true }
-      );
-    } catch (error) {
-      console.error("Tracking failed:", error);
-    }
-  };
+        console.log("User location sent:", payload);
+      },
+      (err) => {
+        console.error("Geolocation error", err);
+      },
+      { enableHighAccuracy: true }
+    );
+  } catch (error) {
+    console.error("Tracking failed:", error);
+  }
+};
+
 
   return (
     <div className="container dark">
