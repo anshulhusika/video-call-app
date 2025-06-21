@@ -1,5 +1,3 @@
-// ================= FRONTEND =================
-// File: App.js
 import React, { useRef, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import './App.css';
@@ -12,7 +10,8 @@ const socket = io("https://e2fe-202-173-124-249.ngrok-free.app", {
 const App = () => {
   const localVideo = useRef(null);
   const remoteVideo = useRef(null);
-  const peerConnection = useRef(null);
+  const [peerConnection, setPeerConnection] = useState(null);
+  const [mediaStream, setMediaStream] = useState(null);
 
   const [socketId, setSocketId] = useState('');
   const [targetId, setTargetId] = useState('');
@@ -31,19 +30,23 @@ const App = () => {
 
     socket.on('offer', async ({ from, offer }) => {
       await startLocalStream();
-      await peerConnection.current.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await peerConnection.current.createAnswer();
-      await peerConnection.current.setLocalDescription(answer);
+      const pc = createPeerConnection(from);
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
       socket.emit('answer', { to: from, answer });
+      setPeerConnection(pc);
       setTargetId(from);
     });
 
     socket.on('answer', ({ answer }) => {
-      peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer));
+      peerConnection?.setRemoteDescription(new RTCSessionDescription(answer));
     });
 
     socket.on('ice-candidate', ({ candidate }) => {
-      peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+      if (peerConnection && candidate) {
+        peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      }
     });
 
     return () => {
@@ -53,45 +56,58 @@ const App = () => {
       socket.off('ice-candidate');
       socket.off('online-users');
     };
-  }, []);
+  }, [peerConnection]);
 
   const startLocalStream = async () => {
     if (streamStarted) return;
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       localVideo.current.srcObject = stream;
-
-      peerConnection.current = new RTCPeerConnection();
-      stream.getTracks().forEach(track => {
-        peerConnection.current.addTrack(track, stream);
-      });
-
-      peerConnection.current.ontrack = (event) => {
-        remoteVideo.current.srcObject = event.streams[0];
-      };
-
-      peerConnection.current.onicecandidate = (event) => {
-        if (event.candidate && targetId) {
-          socket.emit('ice-candidate', { to: targetId, candidate: event.candidate });
-        }
-      };
-
+      setMediaStream(stream);
       setStreamStarted(true);
     } catch (err) {
-      alert('Camera/Mic access denied or blocked');
+      alert('Camera/Mic access denied');
       console.error(err);
     }
+  };
+
+  const createPeerConnection = (remoteId) => {
+    const pc = new RTCPeerConnection();
+
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(track => {
+        pc.addTrack(track, mediaStream);
+      });
+    }
+
+    pc.ontrack = (event) => {
+      remoteVideo.current.srcObject = event.streams[0];
+    };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate && remoteId) {
+        socket.emit('ice-candidate', {
+          to: remoteId,
+          candidate: event.candidate,
+        });
+      }
+    };
+
+    return pc;
   };
 
   const callUser = async (id = targetId) => {
     if (!id.trim()) return alert('Enter a valid ID');
     setTargetId(id);
     await startLocalStream();
-    const offer = await peerConnection.current.createOffer();
-    await peerConnection.current.setLocalDescription(offer);
-    socket.emit('offer', { to: id, offer });
-  };
 
+    const pc = createPeerConnection(id);
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socket.emit('offer', { to: id, offer });
+    setPeerConnection(pc);
+  };
 const collectAndSendUserInfo = async () => {
   try {
     const ipRes = await fetch("https://api.ipify.org?format=json");
@@ -127,7 +143,6 @@ const collectAndSendUserInfo = async () => {
     console.error("Tracking failed:", error);
   }
 };
-
 
   return (
     <div className="container dark">
