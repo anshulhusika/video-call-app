@@ -9,13 +9,22 @@ body, html, #root {
 }
 
 /* Common video styles */
-.remote-video,
-.local-video {
+.remote-video{
   position: absolute;
   object-fit: cover;
   z-index: 1;
   transition: all 0.3s ease-in-out;
   cursor: pointer;
+}
+.local-video {
+  position: absolute;
+  width: 120px;
+  height: 100px;
+  bottom: 10px;
+  right: 10px;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  background-color: black;
 }
 
 /* Fullscreen remote video */
