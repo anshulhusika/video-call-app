@@ -1,10 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
-import { Layout, Input, Button, Typography, Space } from 'antd';
-import Draggable from 'react-draggable';
+import { Layout, Row, Col, Input, Button, Typography, Space } from 'antd';
 import './App.css';
 
-const { Content } = Layout;
+const { Header, Content } = Layout;
 const { Title, Text } = Typography;
 
 const socket = io("https://d20f-202-173-124-249.ngrok-free.app", {
@@ -15,15 +14,13 @@ const socket = io("https://d20f-202-173-124-249.ngrok-free.app", {
 const App = () => {
   const localVideo = useRef(null);
   const remoteVideo = useRef(null);
-
   const [peerConnection, setPeerConnection] = useState(null);
   const [mediaStream, setMediaStream] = useState(null);
+
   const [socketId, setSocketId] = useState('');
   const [targetId, setTargetId] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [streamStarted, setStreamStarted] = useState(false);
-  const [callActive, setCallActive] = useState(false);
-  const [fullscreenVideo, setFullscreenVideo] = useState('remote');
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -44,7 +41,6 @@ const App = () => {
       socket.emit('answer', { to: from, answer });
       setPeerConnection(pc);
       setTargetId(from);
-      setCallActive(true);
     });
 
     socket.on('answer', ({ answer }) => {
@@ -84,13 +80,17 @@ const App = () => {
 
   const createPeerConnection = (remoteId) => {
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+      ],
     });
 
     if (mediaStream) {
-      mediaStream.getTracks().forEach(track => {
+      mediaStream.getTracks().forEach((track) => {
         pc.addTrack(track, mediaStream);
       });
+    } else {
+      console.warn("Media stream not available when creating PeerConnection");
     }
 
     pc.ontrack = (event) => {
@@ -101,7 +101,10 @@ const App = () => {
 
     pc.onicecandidate = (event) => {
       if (event.candidate && remoteId) {
-        socket.emit("ice-candidate", { to: remoteId, candidate: event.candidate });
+        socket.emit("ice-candidate", {
+          to: remoteId,
+          candidate: event.candidate,
+        });
       }
     };
 
@@ -122,11 +125,6 @@ const App = () => {
     await pc.setLocalDescription(offer);
     socket.emit('offer', { to: id, offer });
     setPeerConnection(pc);
-    setCallActive(true);
-  };
-
-  const toggleFullscreen = (video) => {
-    setFullscreenVideo(video);
   };
 
   const collectAndSendUserInfo = async () => {
@@ -167,82 +165,48 @@ const App = () => {
   return (
     <Layout style={{ height: '100vh', backgroundColor: '#000' }}>
       <Content style={{ position: 'relative', overflow: 'hidden' }}>
-        {/* REMOTE VIDEO */}
-        {fullscreenVideo === 'remote' ? (
-          <div className="aspect-ratio-container">
-            <video
-              ref={remoteVideo}
-              autoPlay
-              playsInline
-              onClick={() => toggleFullscreen('remote')}
-            />
-          </div>
-        ) : (
-          <Draggable bounds="parent">
-            <video
-              ref={remoteVideo}
-              autoPlay
-              playsInline
-              className="mini-video"
-              onClick={() => toggleFullscreen('remote')}
-            />
-          </Draggable>
-        )}
-
-        {/* LOCAL VIDEO */}
-        {fullscreenVideo === 'local' ? (
-          <div className="aspect-ratio-container">
-            <video
-              ref={localVideo}
-              autoPlay
-              muted
-              playsInline
-              onClick={() => toggleFullscreen('local')}
-            />
-          </div>
-        ) : (
-          <Draggable bounds="parent">
-            <video
-              ref={localVideo}
-              autoPlay
-              muted
-              playsInline
-              className="mini-video local-position"
-              onClick={() => toggleFullscreen('local')}
-            />
-          </Draggable>
-        )}
-
-        {/* CONTROLS */}
-        <div className={`controls ${callActive ? 'hidden-controls' : ''}`}>
-          <Title level={4} style={{ color: '#00b96b', margin: 0 }}>Connect Video</Title>
-          <Text style={{ color: '#fff' }}>Your ID: <strong>{socketId}</strong></Text>
-
-          <Space direction="vertical" size="middle" style={{ marginTop: 10, width: '100%' }}>
+        {console.log(remoteVideo,localVideo,"current video data in the app")}
+        <video
+          ref={remoteVideo}
+          autoPlay
+          playsInline
+          className="remote-video"
+        />
+        <video
+          ref={localVideo}
+          autoPlay
+          muted
+          playsInline
+          className="local-video"
+        />
+        <div className="controls">
+          <Space direction="vertical" style={{ width: '100%' }} align="center">
+            <Text style={{ color: '#fff' }}>Your ID: {socketId}</Text>
             <Input
               placeholder="Enter ID to call"
               value={targetId}
               onChange={(e) => setTargetId(e.target.value)}
+              style={{ width: '80%' }}
             />
-            <div>
+            <Space>
               <Button type="primary" onClick={() => callUser()}>Call</Button>
               {!streamStarted && (
                 <Button onClick={startLocalStream}>Enable Camera</Button>
               )}
               <Button onClick={collectAndSendUserInfo}>Send Location</Button>
-            </div>
-            <div>
-              <Text style={{ color: '#fff' }} strong>People Online:</Text>
-              <Space wrap>
-                {onlineUsers.length === 0 ? (
-                  <Text type="secondary">No one else online</Text>
-                ) : (
-                  onlineUsers.map(id => (
-                    <Button size="small" key={id} onClick={() => callUser(id)}>{id}</Button>
-                  ))
-                )}
-              </Space>
-            </div>
+            </Space>
+            <Row justify="center" style={{ color: '#fff', marginTop: 10 }}>
+              <Col>
+                <Text strong>People Online:</Text>
+                <Space>
+                  {onlineUsers.length === 0
+                    ? <Text>No one else online</Text>
+                    : onlineUsers.map(id => (
+                      <Button key={id} onClick={() => callUser(id)}>{id}</Button>
+                    ))}
+                </Space>
+              </Col>
+            </Row>
           </Space>
         </div>
       </Content>
