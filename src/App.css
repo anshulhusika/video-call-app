@@ -9,15 +9,24 @@
   justify-content: center;
 }
 
+/* Remote video styling - responsive */
 .remote-video {
-  width: auto;
-  height: 100%;
-  max-height: 90vh;
+  width: 100%;
+  max-width: 360px;         /* width of typical phone */
   aspect-ratio: 6 / 19;
   object-fit: cover;
   background: #000;
   border-radius: 12px;
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
+}
+
+/* Make remote video 100% width on small screens */
+@media (max-width: 768px) {
+  .remote-video {
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: 6 / 19;
+  }
 }
 
 .local-video {
