@@ -1,4 +1,3 @@
-/* Global Styles */
 body, html, #root {
   margin: 0;
   padding: 0;
@@ -8,64 +7,53 @@ body, html, #root {
   overflow: hidden;
 }
 
-/* Common video styles */
-.remote-video,
-.local-video {
+/* Fullscreen video with 9:16 aspect ratio */
+.aspect-ratio-container {
   position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: auto;
+  height: 100%;
+  aspect-ratio: 9 / 16;
+  max-width: 100%;
+  z-index: 1;
+}
+
+.aspect-ratio-container video {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  z-index: 1;
-  transition: all 0.3s ease-in-out;
-  cursor: pointer;
 }
 
-/* Fullscreen remote video */
-.fullscreen-remote {
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-}
-
-/* Fullscreen local video */
-.fullscreen-local {
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-}
-
-/* Draggable mini video (either remote or local) */
+/* Mini draggable video */
 .mini-video {
-  width: 160px;
-  height: 120px;
+  width: 90px;
+  height: 160px;
+  object-fit: cover;
   border: 2px solid white;
   border-radius: 10px;
   z-index: 3;
   cursor: grab;
+  background: #000;
 }
 
-/* Default fixed position for local video */
-.local-video {
+/* Local video default position */
+.local-position {
+  position: absolute;
   bottom: 20px;
   right: 20px;
 }
 
-/* Mobile optimization */
+/* Mobile adjustments */
 @media (max-width: 768px) {
   .mini-video {
-    width: 100px;
-    height: 80px;
-  }
-
-  .local-video {
-    bottom: 10px;
-    right: 10px;
+    width: 60px;
+    height: 106px;
   }
 }
 
-/* Top Controls Panel */
+/* Call controls panel */
 .controls {
   position: absolute;
   top: 0;
@@ -94,7 +82,7 @@ body, html, #root {
   margin: 0 5px;
 }
 
-/* Hide controls after call connects */
+/* Hide controls in active call */
 .hidden-controls {
   display: none;
 }
