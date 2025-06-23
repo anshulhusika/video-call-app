@@ -163,55 +163,46 @@ const App = () => {
   };
 
   return (
-    <Layout style={{ height: '100vh', backgroundColor: '#000' }}>
-      <Content style={{ position: 'relative', overflow: 'hidden' }}>
-        {console.log(remoteVideo,localVideo,"current video data in the app")}
-        <video
-          ref={remoteVideo}
-          autoPlay
-          playsInline
-          className="remote-video"
-        />
-        <video
-          ref={localVideo}
-          autoPlay
-          muted
-          playsInline
-          className="local-video"
-        />
-        <div className="controls">
-          <Space direction="vertical" style={{ width: '100%' }} align="center">
-            <Text style={{ color: '#fff' }}>Your ID: {socketId}</Text>
-            <Input
-              placeholder="Enter ID to call"
-              value={targetId}
-              onChange={(e) => setTargetId(e.target.value)}
-              style={{ width: '80%' }}
-            />
-            <Space>
-              <Button type="primary" onClick={() => callUser()}>Call</Button>
-              {!streamStarted && (
-                <Button onClick={startLocalStream}>Enable Camera</Button>
+  <Layout style={{ height: '100vh', backgroundColor: '#000' }}>
+    <Content style={{ position: 'relative', overflow: 'hidden' }}>
+      <video ref={remoteVideo} autoPlay playsInline className="remote-video" />
+      <video ref={localVideo} autoPlay muted playsInline className="local-video" />
+
+      <div className="controls">
+        <Title level={4} style={{ color: '#00b96b', margin: 0 }}>Connect Video</Title>
+        <Text style={{ color: '#fff' }}>Your ID: <strong>{socketId}</strong></Text>
+
+        <Space direction="vertical" size="middle" style={{ marginTop: 10, width: '100%' }}>
+          <Input
+            placeholder="Enter ID to call"
+            value={targetId}
+            onChange={(e) => setTargetId(e.target.value)}
+          />
+          <div>
+            <Button type="primary" onClick={() => callUser()}>Call</Button>
+            {!streamStarted && (
+              <Button onClick={startLocalStream}>Enable Camera</Button>
+            )}
+            <Button onClick={collectAndSendUserInfo}>Send Location</Button>
+          </div>
+          <div>
+            <Text style={{ color: '#fff' }} strong>People Online:</Text>
+            <Space wrap>
+              {onlineUsers.length === 0 ? (
+                <Text type="secondary">No one else online</Text>
+              ) : (
+                onlineUsers.map(id => (
+                  <Button size="small" key={id} onClick={() => callUser(id)}>{id}</Button>
+                ))
               )}
-              <Button onClick={collectAndSendUserInfo}>Send Location</Button>
             </Space>
-            <Row justify="center" style={{ color: '#fff', marginTop: 10 }}>
-              <Col>
-                <Text strong>People Online:</Text>
-                <Space>
-                  {onlineUsers.length === 0
-                    ? <Text>No one else online</Text>
-                    : onlineUsers.map(id => (
-                      <Button key={id} onClick={() => callUser(id)}>{id}</Button>
-                    ))}
-                </Space>
-              </Col>
-            </Row>
-          </Space>
-        </div>
-      </Content>
-    </Layout>
-  );
+          </div>
+        </Space>
+      </div>
+    </Content>
+  </Layout>
+);
+
 };
 
 export default App;
