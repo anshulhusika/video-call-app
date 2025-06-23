@@ -4,22 +4,28 @@
   height: 100vh;
   background-color: black;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .remote-video {
-  width: 100%;
+  width: auto;
   height: 100%;
-  object-fit: cover;
+  max-height: 90vh;
   aspect-ratio: 6 / 19;
+  object-fit: cover;
   background: #000;
+  border-radius: 12px;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
 }
 
 .local-video {
   position: absolute;
   top: 20px;
   right: 20px;
-  width: 120px;
-  height: 213px; /* maintains 6:19 ratio */
+  width: 96px;
+  height: 182px; /* 6:19 ratio */
   background: #000;
   border: 2px solid #fff;
   border-radius: 8px;
