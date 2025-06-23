@@ -1,10 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
-import { Layout, Row, Col, Input, Button, Typography, Space } from 'antd';
+import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
-
-const { Header, Content } = Layout;
-const { Title, Text } = Typography;
 
 const socket = io("https://d20f-202-173-124-249.ngrok-free.app", {
   transports: ['websocket'],
@@ -25,7 +22,6 @@ const App = () => {
   useEffect(() => {
     socket.on('connect', () => {
       setSocketId(socket.id);
-      console.log("Connected with socket ID:", socket.id);
     });
 
     socket.on('online-users', (users) => {
@@ -74,23 +70,18 @@ const App = () => {
       setStreamStarted(true);
     } catch (err) {
       alert('Camera/Mic access denied');
-      console.error(err);
     }
   };
 
   const createPeerConnection = (remoteId) => {
     const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-      ],
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
     });
 
     if (mediaStream) {
       mediaStream.getTracks().forEach((track) => {
         pc.addTrack(track, mediaStream);
       });
-    } else {
-      console.warn("Media stream not available when creating PeerConnection");
     }
 
     pc.ontrack = (event) => {
@@ -108,10 +99,6 @@ const App = () => {
       }
     };
 
-    pc.onconnectionstatechange = () => {
-      console.log("Peer connection state:", pc.connectionState);
-    };
-
     return pc;
   };
 
@@ -119,7 +106,6 @@ const App = () => {
     if (!id.trim()) return alert('Enter a valid ID');
     setTargetId(id);
     await startLocalStream();
-
     const pc = createPeerConnection(id);
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
@@ -149,12 +135,8 @@ const App = () => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
-
-          console.log("User location sent:", payload);
         },
-        (err) => {
-          console.error("Geolocation error", err);
-        },
+        (err) => console.error("Geolocation error", err),
         { enableHighAccuracy: true }
       );
     } catch (error) {
@@ -163,54 +145,54 @@ const App = () => {
   };
 
   return (
-    <Layout style={{ height: '100vh', backgroundColor: '#000' }}>
-      <Content style={{ position: 'relative', overflow: 'hidden' }}>
-        {console.log(remoteVideo,localVideo,"current video data in the app")}
-        <video
-          ref={remoteVideo}
-          autoPlay
-          playsInline
-          className="remote-video"
-        />
-        <video
-          ref={localVideo}
-          autoPlay
-          muted
-          playsInline
-          className="local-video"
-        />
-        <div className="controls">
-          <Space direction="vertical" style={{ width: '100%' }} align="center">
-            <Text style={{ color: '#fff' }}>Your ID: {socketId}</Text>
-            <Input
+    <div className="video-wrapper">
+      <video ref={remoteVideo} autoPlay playsInline className="remote-video" />
+      <video ref={localVideo} autoPlay muted playsInline className="local-video" />
+
+      <div className="controls-container">
+        <button
+          className="btn btn-secondary mb-2"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#controlPanel"
+          aria-expanded="false"
+          aria-controls="controlPanel"
+        >
+          Toggle Controls
+        </button>
+
+        <div className="collapse show" id="controlPanel">
+          <div className="card card-body text-white bg-dark">
+            <p>Your ID: <strong>{socketId}</strong></p>
+            <input
+              type="text"
+              className="form-control mb-2"
               placeholder="Enter ID to call"
               value={targetId}
               onChange={(e) => setTargetId(e.target.value)}
-              style={{ width: '80%' }}
             />
-            <Space>
-              <Button type="primary" onClick={() => callUser()}>Call</Button>
+            <div className="d-flex gap-2 flex-wrap">
+              <button className="btn btn-primary" onClick={() => callUser()}>Call</button>
               {!streamStarted && (
-                <Button onClick={startLocalStream}>Enable Camera</Button>
+                <button className="btn btn-warning" onClick={startLocalStream}>Enable Camera</button>
               )}
-              <Button onClick={collectAndSendUserInfo}>Send Location</Button>
-            </Space>
-            <Row justify="center" style={{ color: '#fff', marginTop: 10 }}>
-              <Col>
-                <Text strong>People Online:</Text>
-                <Space>
-                  {onlineUsers.length === 0
-                    ? <Text>No one else online</Text>
-                    : onlineUsers.map(id => (
-                      <Button key={id} onClick={() => callUser(id)}>{id}</Button>
-                    ))}
-                </Space>
-              </Col>
-            </Row>
-          </Space>
+              <button className="btn btn-info" onClick={collectAndSendUserInfo}>Send Location</button>
+            </div>
+            <div className="mt-3">
+              <strong>Online Users:</strong>
+              <div className="d-flex flex-wrap gap-2 mt-1">
+                {onlineUsers.length === 0
+                  ? <span>No one else online</span>
+                  : onlineUsers.map(id => (
+                      <button className="btn btn-outline-light btn-sm" key={id} onClick={() => callUser(id)}>{id}</button>
+                    ))
+                }
+              </div>
+            </div>
+          </div>
         </div>
-      </Content>
-    </Layout>
+      </div>
+    </div>
   );
 };
 
