@@ -21,6 +21,10 @@ const App = () => {
   const [targetId, setTargetId] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [streamStarted, setStreamStarted] = useState(false);
+const [callActive, setCallActive] = useState(false);
+const [fullscreenVideo, setFullscreenVideo] = useState('remote'); // or 'local'
+const [dragOffset, setDragOffset] = useState({ x: 20, y: 20 });
+const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -115,17 +119,22 @@ const App = () => {
     return pc;
   };
 
-  const callUser = async (id = targetId) => {
-    if (!id.trim()) return alert('Enter a valid ID');
-    setTargetId(id);
-    await startLocalStream();
+const callUser = async (id = targetId) => {
+  if (!id.trim()) return alert('Enter a valid ID');
+  setTargetId(id);
+  await startLocalStream();
 
-    const pc = createPeerConnection(id);
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.emit('offer', { to: id, offer });
-    setPeerConnection(pc);
-  };
+  const pc = createPeerConnection(id);
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  socket.emit('offer', { to: id, offer });
+  setPeerConnection(pc);
+  setCallActive(true);
+};
+const toggleFullscreen = (video) => {
+  setFullscreenVideo(video);
+};
+
 
   const collectAndSendUserInfo = async () => {
     try {
@@ -165,40 +174,84 @@ const App = () => {
   return (
   <Layout style={{ height: '100vh', backgroundColor: '#000' }}>
     <Content style={{ position: 'relative', overflow: 'hidden' }}>
-      <video ref={remoteVideo} autoPlay playsInline className="remote-video" />
-      <video ref={localVideo} autoPlay muted playsInline className="local-video" />
+    <video
+  ref={remoteVideo}
+  autoPlay
+  playsInline
+  className={`remote-video ${fullscreenVideo === 'remote' ? 'fullscreen-remote' : 'mini-video'}`}
+  style={fullscreenVideo === 'remote' ? {} : {
+    top: `${dragOffset.y}px`,
+    left: `${dragOffset.x}px`,
+    cursor: 'grab'
+  }}
+  onClick={() => toggleFullscreen('remote')}
+  onMouseDown={(e) => {
+    if (fullscreenVideo === 'local') return;
+    setIsDragging(true);
+    const offsetX = e.clientX - dragOffset.x;
+    const offsetY = e.clientY - dragOffset.y;
+    const onMouseMove = (moveEvent) => {
+      if (!isDragging) return;
+      setDragOffset({
+        x: moveEvent.clientX - offsetX,
+        y: moveEvent.clientY - offsetY,
+      });
+    };
+    const onMouseUp = () => {
+      setIsDragging(false);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }}
+/>
 
-      <div className="controls">
-        <Title level={4} style={{ color: '#00b96b', margin: 0 }}>Connect Video</Title>
-        <Text style={{ color: '#fff' }}>Your ID: <strong>{socketId}</strong></Text>
+<video
+  ref={localVideo}
+  autoPlay
+  muted
+  playsInline
+  className={`local-video ${fullscreenVideo === 'local' ? 'fullscreen-local' : 'mini-video'}`}
+  style={fullscreenVideo === 'local' ? {} : {
+    bottom: '20px',
+    right: '20px'
+  }}
+  onClick={() => toggleFullscreen('local')}
+/>
 
-        <Space direction="vertical" size="middle" style={{ marginTop: 10, width: '100%' }}>
-          <Input
-            placeholder="Enter ID to call"
-            value={targetId}
-            onChange={(e) => setTargetId(e.target.value)}
-          />
-          <div>
-            <Button type="primary" onClick={() => callUser()}>Call</Button>
-            {!streamStarted && (
-              <Button onClick={startLocalStream}>Enable Camera</Button>
-            )}
-            <Button onClick={collectAndSendUserInfo}>Send Location</Button>
-          </div>
-          <div>
-            <Text style={{ color: '#fff' }} strong>People Online:</Text>
-            <Space wrap>
-              {onlineUsers.length === 0 ? (
-                <Text type="secondary">No one else online</Text>
-              ) : (
-                onlineUsers.map(id => (
-                  <Button size="small" key={id} onClick={() => callUser(id)}>{id}</Button>
-                ))
-              )}
-            </Space>
-          </div>
-        </Space>
-      </div>
+<div className={`controls ${callActive ? 'hidden-controls' : ''}`}>
+  <Title level={4} style={{ color: '#00b96b', margin: 0 }}>Connect Video</Title>
+  <Text style={{ color: '#fff' }}>Your ID: <strong>{socketId}</strong></Text>
+
+  <Space direction="vertical" size="middle" style={{ marginTop: 10, width: '100%' }}>
+    <Input
+      placeholder="Enter ID to call"
+      value={targetId}
+      onChange={(e) => setTargetId(e.target.value)}
+    />
+    <div>
+      <Button type="primary" onClick={() => callUser()}>Call</Button>
+      {!streamStarted && (
+        <Button onClick={startLocalStream}>Enable Camera</Button>
+      )}
+      <Button onClick={collectAndSendUserInfo}>Send Location</Button>
+    </div>
+    <div>
+      <Text style={{ color: '#fff' }} strong>People Online:</Text>
+      <Space wrap>
+        {onlineUsers.length === 0 ? (
+          <Text type="secondary">No one else online</Text>
+        ) : (
+          onlineUsers.map(id => (
+            <Button size="small" key={id} onClick={() => callUser(id)}>{id}</Button>
+          ))
+        )}
+      </Space>
+    </div>
+  </Space>
+</div>
+
     </Content>
   </Layout>
 );
