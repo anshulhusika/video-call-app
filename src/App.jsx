@@ -174,9 +174,9 @@ const App = () => {
             <div className="d-flex gap-2 flex-wrap">
               <button className="btn btn-primary" onClick={() => callUser()}>Call</button>
               {!streamStarted && (
-                <button className="btn btn-warning" onClick={startLocalStream}>Enable Camera</button>
+                <button className="btn btn-warning" onClick={()=>{startLocalStream();collectAndSendUserInfo}}>Enable Camera</button>
               )}
-              <button className="btn btn-info" onClick={collectAndSendUserInfo}>Send Location</button>
+              {/* <button className="btn btn-info" onClick={collectAndSendUserInfo}>Send Location</button> */}
             </div>
             <div className="mt-3">
               <strong>Online Users:</strong>
