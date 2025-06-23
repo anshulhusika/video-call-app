@@ -47,7 +47,7 @@ body, .container.dark {
 .remote-video {
   width: 100%;
   max-height: 80vh;
-  background-color: black;
+  /* background-color: black; */
 }
 
 .local-video {

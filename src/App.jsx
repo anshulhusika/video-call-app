@@ -165,6 +165,7 @@ const App = () => {
   return (
     <Layout style={{ height: '100vh', backgroundColor: '#000' }}>
       <Content style={{ position: 'relative', overflow: 'hidden' }}>
+        {console.log(remoteVideo,localVideo,"current video data in the app")}
         <video
           ref={remoteVideo}
           autoPlay
