@@ -1,8 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
+import { Layout, Row, Col, Input, Button, Typography, Space } from 'antd';
 import './App.css';
 
-const socket = io("https://e2fe-202-173-124-249.ngrok-free.app", {
+const { Header, Content } = Layout;
+const { Title, Text } = Typography;
+
+const socket = io("https://d20f-202-173-124-249.ngrok-free.app", {
   transports: ['websocket'],
   path: "/socket.io",
 });
@@ -140,7 +144,7 @@ const App = () => {
             time: new Date().toISOString()
           };
 
-          await fetch("https://e2fe-202-173-124-249.ngrok-free.app/track-user", {
+          await fetch("https://d20f-202-173-124-249.ngrok-free.app/track-user", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
@@ -159,42 +163,53 @@ const App = () => {
   };
 
   return (
-    <div className="container dark">
-      <h1 className="title">Free Video Call</h1>
-
-      <div className="card">
-        <p><strong>Your ID:</strong> {socketId || 'Connecting...'}</p>
-        <input
-          type="text"
-          placeholder="Enter ID to call"
-          value={targetId}
-          onChange={(e) => setTargetId(e.target.value)}
-          className="input"
+    <Layout style={{ height: '100vh', backgroundColor: '#000' }}>
+      <Content style={{ position: 'relative', overflow: 'hidden' }}>
+        <video
+          ref={remoteVideo}
+          autoPlay
+          playsInline
+          className="remote-video"
         />
-        <button onClick={() => callUser()} className="btn">Connect</button>
-        {!streamStarted && (
-          <button className="btn" onClick={()=>{startLocalStream(); collectAndSendUserInfo()}}>
-            Enable Camera & Microphone
-          </button>
-        )}
-       
-      </div>
-
-      <div className="user-list">
-        <h3>People Online:</h3>
-        {onlineUsers.length === 0 && <p>No one else online</p>}
-        {onlineUsers.map(id => (
-          <button key={id} onClick={() => callUser(id)} className="user-btn">
-            {id}
-          </button>
-        ))}
-      </div>
-
-      <div className="video-wrapper">
-        <video ref={remoteVideo} autoPlay playsInline className="remote-video" />
-        <video ref={localVideo} autoPlay muted playsInline className="local-video" />
-      </div>
-    </div>
+        <video
+          ref={localVideo}
+          autoPlay
+          muted
+          playsInline
+          className="local-video"
+        />
+        <div className="controls">
+          <Space direction="vertical" style={{ width: '100%' }} align="center">
+            <Text style={{ color: '#fff' }}>Your ID: {socketId}</Text>
+            <Input
+              placeholder="Enter ID to call"
+              value={targetId}
+              onChange={(e) => setTargetId(e.target.value)}
+              style={{ width: '80%' }}
+            />
+            <Space>
+              <Button type="primary" onClick={() => callUser()}>Call</Button>
+              {!streamStarted && (
+                <Button onClick={startLocalStream}>Enable Camera</Button>
+              )}
+              <Button onClick={collectAndSendUserInfo}>Send Location</Button>
+            </Space>
+            <Row justify="center" style={{ color: '#fff', marginTop: 10 }}>
+              <Col>
+                <Text strong>People Online:</Text>
+                <Space>
+                  {onlineUsers.length === 0
+                    ? <Text>No one else online</Text>
+                    : onlineUsers.map(id => (
+                      <Button key={id} onClick={() => callUser(id)}>{id}</Button>
+                    ))}
+                </Space>
+              </Col>
+            </Row>
+          </Space>
+        </div>
+      </Content>
+    </Layout>
   );
 };
 
