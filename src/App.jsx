@@ -85,7 +85,15 @@ const App = () => {
       const index = indexToUse !== null ? indexToUse : 0;
       setCurrentCameraIndex(index % usableDevices.length);
 
-      const selectedDeviceId = usableDevices[index % usableDevices.length].deviceId;
+if (!usableDevices.length) {
+  alert('No camera devices found');
+  return;
+}
+
+const safeIndex = index % usableDevices.length;
+setCurrentCameraIndex(safeIndex);
+
+const selectedDeviceId = usableDevices[safeIndex].deviceId;
 
       const constraints = {
         video: { deviceId: { exact: selectedDeviceId } },
