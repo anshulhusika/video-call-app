@@ -13,7 +13,7 @@
 .remote-video {
   width: 100%;
   height: auto;
-  max-width: 100%;
+  max-width: 90%;
   object-fit: cover;
   background: #000;
   border-radius: 12px;
