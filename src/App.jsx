@@ -4,8 +4,6 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 import { motion } from 'framer-motion';
 
-
-
 const socket = io("https://8c1f-202-173-124-126.ngrok-free.app", {
   transports: ['websocket'],
   path: "/socket.io",
@@ -21,8 +19,9 @@ const App = () => {
   const [targetId, setTargetId] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [streamStarted, setStreamStarted] = useState(false);
-const [videoDevices, setVideoDevices] = useState([]);
-const [selectedDeviceId, setSelectedDeviceId] = useState(null);
+
+  const [videoDevices, setVideoDevices] = useState([]);
+  const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -56,6 +55,9 @@ const [selectedDeviceId, setSelectedDeviceId] = useState(null);
       }
     });
 
+    // Start front camera on mount
+    startLocalStream();
+
     return () => {
       socket.off('connect');
       socket.off('offer');
@@ -65,41 +67,44 @@ const [selectedDeviceId, setSelectedDeviceId] = useState(null);
     };
   }, [peerConnection]);
 
- const startLocalStream = async (deviceIdToUse = null) => {
-  if (streamStarted && !deviceIdToUse) return;
+  const startLocalStream = async (indexToUse = null) => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter(device => device.kind === 'videoinput');
 
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const videoInputs = devices.filter(device => device.kind === 'videoinput');
-    setVideoDevices(videoInputs);
-
-    let selectedDevice = deviceIdToUse;
-
-    // If no specific camera passed, choose preferred one
-    if (!selectedDevice) {
-      const backCam = videoInputs.find(d =>
-        d.label.toLowerCase().includes('back') ||
-        d.label.toLowerCase().includes('rear')
+      // Prefer front and back cameras only
+      const preferred = videoInputs.filter(device =>
+        device.label.toLowerCase().includes('front') ||
+        device.label.toLowerCase().includes('back')
       );
-      selectedDevice = backCam?.deviceId || videoInputs[0]?.deviceId;
-      setSelectedDeviceId(selectedDevice);
+
+      const usableDevices = preferred.length ? preferred : videoInputs;
+
+      setVideoDevices(usableDevices);
+
+      const index = indexToUse !== null ? indexToUse : 0;
+      setCurrentCameraIndex(index % usableDevices.length);
+
+      const selectedDeviceId = usableDevices[index % usableDevices.length].deviceId;
+
+      const constraints = {
+        video: { deviceId: { exact: selectedDeviceId } },
+        audio: true
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (localVideo.current) localVideo.current.srcObject = stream;
+
+      // Stop previous tracks
+      mediaStream?.getTracks().forEach(track => track.stop());
+
+      setMediaStream(stream);
+      setStreamStarted(true);
+    } catch (err) {
+      alert('Camera/Mic access denied or error starting stream.');
+      console.error(err);
     }
-
-    const constraints = {
-      video: { deviceId: { exact: selectedDevice } },
-      audio: true
-    };
-
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    if (localVideo.current) localVideo.current.srcObject = stream;
-
-    setMediaStream(stream);
-    setStreamStarted(true);
-  } catch (err) {
-    alert('Camera/Mic access denied or error starting stream.');
-    console.error(err);
-  }
-};
+  };
 
   const createPeerConnection = (remoteId) => {
     const pc = new RTCPeerConnection({
@@ -133,7 +138,7 @@ const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   const callUser = async (id = targetId) => {
     if (!id.trim()) return alert('Enter a valid ID');
     setTargetId(id);
-    await startLocalStream();
+    await startLocalStream(currentCameraIndex);
     const pc = createPeerConnection(id);
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
@@ -175,19 +180,18 @@ const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   return (
     <div className="video-wrapper">
       <video ref={remoteVideo} autoPlay playsInline className="remote-video" />
-     <motion.video
-  ref={localVideo}
-  drag
-  dragConstraints={{ left: 0, right: 0, top: 100, bottom: 400 }}
-  autoPlay
-  muted
-  playsInline
-  className="local-video"
-  initial={{ opacity: 0, scale: 0.9 }}
-  animate={{ opacity: 1, scale: 1 }}
-  transition={{ duration: 0.5 }}
-/>
-
+      <motion.video
+        ref={localVideo}
+        drag
+        dragConstraints={{ left: 0, right: 0, top: 100, bottom: 400 }}
+        autoPlay
+        muted
+        playsInline
+        className="local-video"
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+      />
 
       <div className="controls-container">
         <button
@@ -214,16 +218,19 @@ const [selectedDeviceId, setSelectedDeviceId] = useState(null);
             <div className="d-flex gap-2 flex-wrap">
               <button className="btn btn-primary" onClick={() => callUser()}>Call</button>
               {!streamStarted && (
-                <button className="btn btn-warning" onClick={()=>{startLocalStream();collectAndSendUserInfo}}>Enable Camera</button>
+                <button className="btn btn-warning" onClick={() => {
+                  startLocalStream();
+                  collectAndSendUserInfo();
+                }}>Enable Camera</button>
               )}
-              {/* <button className="btn btn-info" onClick={collectAndSendUserInfo}>Send Location</button> */}
               <button
-  className="btn btn-outline-info"
-  onClick={() => startLocalStream((currentCameraIndex + 1) % videoDevices.length)}
->
-  🔁 Switch Camera
-</button>
-
+                className="btn btn-outline-info"
+                onClick={() =>
+                  startLocalStream((currentCameraIndex + 1) % videoDevices.length)
+                }
+              >
+                🔁 Switch Camera
+              </button>
             </div>
             <div className="mt-3">
               <strong>Online Users:</strong>
