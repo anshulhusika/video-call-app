@@ -62,42 +62,61 @@ const App = () => {
     };
   }, [peerConnection]);
 
-  const startLocalStream = async (indexToUse = null) => {
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoInputs = devices.filter(device => device.kind === 'videoinput');
-      setVideoDevices(videoInputs);
+ const startLocalStream = async (indexToUse = null) => {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoInputs = devices.filter(device => device.kind === 'videoinput');
+    setVideoDevices(videoInputs);
 
-      const selectedDeviceId = indexToUse !== null
-        ? videoInputs[indexToUse % videoInputs.length]?.deviceId
-        : videoInputs[0]?.deviceId;
+    const selectedDeviceId = indexToUse !== null
+      ? videoInputs[indexToUse % videoInputs.length]?.deviceId
+      : videoInputs[0]?.deviceId;
 
-      if (!selectedDeviceId) throw new Error("No video device found");
+    if (!selectedDeviceId) throw new Error("No video device found");
 
-      const constraints = {
-        video: { deviceId: { exact: selectedDeviceId } },
-        audio: true
-      };
+    const constraints = {
+      video: { deviceId: { exact: selectedDeviceId } },
+      audio: true
+    };
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      if (localVideo.current) localVideo.current.srcObject = stream;
+    const newStream = await navigator.mediaDevices.getUserMedia(constraints);
 
-      // Stop old tracks
-      if (mediaStream) {
-        mediaStream.getTracks().forEach(track => track.stop());
+    // Replace video track in peer connection without breaking it
+    if (peerConnection && mediaStream) {
+      const oldVideoTrack = mediaStream.getVideoTracks()[0];
+      const newVideoTrack = newStream.getVideoTracks()[0];
+
+      const sender = peerConnection.getSenders().find(s => s.track && s.track.kind === 'video');
+      if (sender) {
+        await sender.replaceTrack(newVideoTrack);
       }
 
-      setMediaStream(stream);
-      setStreamStarted(true);
-      setCurrentCameraIndex(indexToUse ?? 0);
+      // Remove old video track and add new one to the local stream
+      mediaStream.removeTrack(oldVideoTrack);
+      mediaStream.addTrack(newVideoTrack);
+      if (localVideo.current) {
+        localVideo.current.srcObject = mediaStream;
+      }
 
-      return stream;
-    } catch (err) {
-      alert("Camera/Mic access denied or failed\n\n" + err.message);
-      console.error("Media Error:", err);
-      return null;
+      // Stop old track
+      oldVideoTrack.stop();
+    } else {
+      // Initial stream setup
+      setMediaStream(newStream);
+      if (localVideo.current) {
+        localVideo.current.srcObject = newStream;
+      }
+      setStreamStarted(true);
     }
-  };
+
+    setCurrentCameraIndex(indexToUse ?? 0);
+    return newStream;
+  } catch (err) {
+    alert("Camera/Mic access denied or failed\n\n" + err.message);
+    console.error("Media Error:", err);
+    return null;
+  }
+};
 
   const createPeerConnection = (remoteId, stream) => {
     const pc = new RTCPeerConnection({
@@ -192,14 +211,15 @@ const App = () => {
       />
 
       <div className="controls-container">
-        <button
-          className="btn btn-secondary mb-2"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#controlPanel"
-        >
-          Toggle Controls
-        </button>
+       <button
+  className="transparent-gradient-btn mb-2"
+  type="button"
+  data-bs-toggle="collapse"
+  data-bs-target="#controlPanel"
+>
+   Controls
+</button>
+
 
         <div className="collapse show" id="controlPanel">
           <div className="card card-body text-white bg-dark">
