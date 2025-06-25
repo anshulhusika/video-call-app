@@ -32,16 +32,20 @@ const App = () => {
       setOnlineUsers(users.filter(id => id !== socket.id));
     });
 
-    socket.on('offer', async ({ from, offer }) => {
-      await startLocalStream();
-      const pc = createPeerConnection(from);
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit('answer', { to: from, answer });
-      setPeerConnection(pc);
-      setTargetId(from);
-    });
+   socket.on('offer', async ({ from, offer }) => {
+  if (!streamStarted) {
+    await startLocalStream();
+  }
+
+  const pc = createPeerConnection(from);
+  await pc.setRemoteDescription(new RTCSessionDescription(offer));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  socket.emit('answer', { to: from, answer });
+  setPeerConnection(pc);
+  setTargetId(from);
+});
+
 
     socket.on('answer', ({ answer }) => {
       if (peerConnection) {
