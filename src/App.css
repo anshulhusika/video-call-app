@@ -18,7 +18,9 @@
   background: #000;
   border-radius: 12px;
   box-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
-  aspect-ratio: auto; /* optional: defaults to the natural video ratio */
+    aspect-ratio: 6 / 19;
+
+  /* aspect-ratio: auto; optional: defaults to the natural video ratio */
 }
 
 /* Make remote video 100% width on small screens */
