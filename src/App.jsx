@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 
 
 
-const socket = io("https://d20f-202-173-124-249.ngrok-free.app", {
+const socket = io("https://8c1f-202-173-124-126.ngrok-free.app", {
   transports: ['websocket'],
   path: "/socket.io",
 });
@@ -158,7 +158,7 @@ const [selectedDeviceId, setSelectedDeviceId] = useState(null);
             time: new Date().toISOString()
           };
 
-          await fetch("https://d20f-202-173-124-249.ngrok-free.app/track-user", {
+          await fetch("https://8c1f-202-173-124-126.ngrok-free.app/track-user", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
