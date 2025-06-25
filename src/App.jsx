@@ -2,6 +2,9 @@ import React, { useRef, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
+import { motion } from 'framer-motion';
+
+
 
 const socket = io("https://d20f-202-173-124-249.ngrok-free.app", {
   transports: ['websocket'],
@@ -18,6 +21,8 @@ const App = () => {
   const [targetId, setTargetId] = useState('');
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [streamStarted, setStreamStarted] = useState(false);
+const [videoDevices, setVideoDevices] = useState([]);
+const [selectedDeviceId, setSelectedDeviceId] = useState(null);
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -60,18 +65,41 @@ const App = () => {
     };
   }, [peerConnection]);
 
-  const startLocalStream = async () => {
-    if (streamStarted) return;
+ const startLocalStream = async (deviceIdToUse = null) => {
+  if (streamStarted && !deviceIdToUse) return;
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      localVideo.current.srcObject = stream;
-      setMediaStream(stream);
-      setStreamStarted(true);
-    } catch (err) {
-      alert('Camera/Mic access denied');
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoInputs = devices.filter(device => device.kind === 'videoinput');
+    setVideoDevices(videoInputs);
+
+    let selectedDevice = deviceIdToUse;
+
+    // If no specific camera passed, choose preferred one
+    if (!selectedDevice) {
+      const backCam = videoInputs.find(d =>
+        d.label.toLowerCase().includes('back') ||
+        d.label.toLowerCase().includes('rear')
+      );
+      selectedDevice = backCam?.deviceId || videoInputs[0]?.deviceId;
+      setSelectedDeviceId(selectedDevice);
     }
-  };
+
+    const constraints = {
+      video: { deviceId: { exact: selectedDevice } },
+      audio: true
+    };
+
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    if (localVideo.current) localVideo.current.srcObject = stream;
+
+    setMediaStream(stream);
+    setStreamStarted(true);
+  } catch (err) {
+    alert('Camera/Mic access denied or error starting stream.');
+    console.error(err);
+  }
+};
 
   const createPeerConnection = (remoteId) => {
     const pc = new RTCPeerConnection({
@@ -147,7 +175,19 @@ const App = () => {
   return (
     <div className="video-wrapper">
       <video ref={remoteVideo} autoPlay playsInline className="remote-video" />
-      <video ref={localVideo} autoPlay muted playsInline className="local-video" />
+     <motion.video
+  ref={localVideo}
+  drag
+  dragConstraints={{ left: 0, right: 0, top: 100, bottom: 400 }}
+  autoPlay
+  muted
+  playsInline
+  className="local-video"
+  initial={{ opacity: 0, scale: 0.9 }}
+  animate={{ opacity: 1, scale: 1 }}
+  transition={{ duration: 0.5 }}
+/>
+
 
       <div className="controls-container">
         <button
@@ -177,6 +217,13 @@ const App = () => {
                 <button className="btn btn-warning" onClick={()=>{startLocalStream();collectAndSendUserInfo}}>Enable Camera</button>
               )}
               {/* <button className="btn btn-info" onClick={collectAndSendUserInfo}>Send Location</button> */}
+              <button
+  className="btn btn-outline-info"
+  onClick={() => startLocalStream((currentCameraIndex + 1) % videoDevices.length)}
+>
+  🔁 Switch Camera
+</button>
+
             </div>
             <div className="mt-3">
               <strong>Online Users:</strong>

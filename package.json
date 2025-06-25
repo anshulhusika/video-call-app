@@ -16,6 +16,7 @@
     "@mui/material": "^7.1.2",
     "antd": "^5.26.1",
     "bootstrap": "^5.3.7",
+    "framer-motion": "^12.19.1",
     "lucide-react": "^0.522.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
