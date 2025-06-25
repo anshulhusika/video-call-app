@@ -72,24 +72,22 @@ const startLocalStream = async (indexToUse = null) => {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const videoInputs = devices.filter(device => device.kind === 'videoinput');
 
-    if (!videoInputs.length) {
-      alert('No video input devices found');
+    // If no index passed, just open default camera like before
+    if (indexToUse === null) {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      if (localVideo.current) localVideo.current.srcObject = stream;
+
+      mediaStream?.getTracks().forEach(track => track.stop());
+      setMediaStream(stream);
+      setStreamStarted(true);
+      setVideoDevices(videoInputs);
+      setCurrentCameraIndex(0);
       return;
     }
 
-    // Fallback-safe preferred filtering
-    const preferred = videoInputs.filter(device =>
-      device.label.toLowerCase().includes('front') ||
-      device.label.toLowerCase().includes('back')
-    );
-
-    const usableDevices = preferred.length ? preferred : videoInputs;
-    setVideoDevices(usableDevices);
-
-    const safeIndex = indexToUse !== null ? indexToUse % usableDevices.length : 0;
-    setCurrentCameraIndex(safeIndex);
-
-    const selectedDeviceId = usableDevices[safeIndex].deviceId;
+    // Otherwise, use specific device
+    const safeIndex = indexToUse % videoInputs.length;
+    const selectedDeviceId = videoInputs[safeIndex].deviceId;
 
     const constraints = {
       video: { deviceId: { exact: selectedDeviceId } },
@@ -99,11 +97,11 @@ const startLocalStream = async (indexToUse = null) => {
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     if (localVideo.current) localVideo.current.srcObject = stream;
 
-    // Stop previous tracks before replacing
     mediaStream?.getTracks().forEach(track => track.stop());
-
     setMediaStream(stream);
     setStreamStarted(true);
+    setVideoDevices(videoInputs);
+    setCurrentCameraIndex(safeIndex);
   } catch (err) {
     alert('Camera/Mic access denied or error starting stream.\n\n' + err.message);
     console.error('Camera error:', err);
@@ -194,6 +192,7 @@ const startLocalStream = async (indexToUse = null) => {
         muted
         playsInline
         className="local-video"
+        style={{ transform: 'scaleX(-1)' }}
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
