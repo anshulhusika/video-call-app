@@ -56,7 +56,7 @@ const App = () => {
     });
 
     // Start front camera on mount
-    startLocalStream();
+    // startLocalStream();
 
     return () => {
       socket.off('connect');
