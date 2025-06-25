@@ -33,7 +33,7 @@ const App = () => {
     });
 
     socket.on('offer', async ({ from, offer }) => {
-      // await startLocalStream();
+      await startLocalStream();
       const pc = createPeerConnection(from);
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await pc.createAnswer();
