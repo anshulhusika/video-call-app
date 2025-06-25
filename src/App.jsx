@@ -142,7 +142,7 @@ const App = () => {
         autoPlay
         playsInline
         className="remote-video"
-        style={{ transform: 'scaleX(-1)' }}
+        // style={{ transform: 'scaleX(-1)' }}
       />
       <motion.video
         ref={localVideo}
